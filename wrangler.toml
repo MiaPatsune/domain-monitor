@@ -6,7 +6,5 @@ keep_vars = true
 [[d1_databases]]
 binding = "DB"
 database_name = "domain-monitor-db"
-database_id = "{CF_D1_ID}"
+database_id = "56ef27f7-6783-4a52-9a7a-7ee9154e8351"
 
-[triggers]
-crons = ["{CF_CRONS}"]
