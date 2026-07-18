@@ -21,9 +21,6 @@ export const HTML_CSS = `
 * { font-family: "PingFang SC","Microsoft YaHei",sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background-color: var(--body-bg);
-  background-image:
-    linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
   min-height: 100vh;
 }
 
