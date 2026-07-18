@@ -12,7 +12,7 @@
  *   /cron          → 手动触发到期检查
  */
 
-import { getConfig } from './utils';
+import { getConfig, sha256, timingSafeEqual } from './utils';
 import { authenticate, handleLogin } from './auth';
 import { getDomainsFromD1 } from './domains';
 import { checkDomainsScheduled } from './cron';
@@ -70,11 +70,18 @@ export default {
     }
 
     if (pathname === '/cron') {
-      // 简单鉴权：需带 ?token=<password> 或 Cron 服务内部触发
+      // 鉴权：需带 ?token=<password>（哈希比较）或 Cron 服务内部触发
       const token = url.searchParams.get('token');
       const isCronInternal = request.headers.get('CF-Triggered-by') === 'cron';
-      if (!isCronInternal && token !== config.password) {
-        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      if (!isCronInternal) {
+        if (!token) {
+          return new Response(JSON.stringify({ error: '未授权：缺少 token 参数' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        }
+        const tokenHash = await sha256(token);
+        const expectedHash = await sha256(config.password);
+        if (!timingSafeEqual(tokenHash, expectedHash)) {
+          return new Response(JSON.stringify({ error: '未授权：token 无效' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        }
       }
       try {
         const expiring = await checkDomainsScheduled(env);

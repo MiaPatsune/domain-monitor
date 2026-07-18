@@ -1,6 +1,29 @@
 /**
- * 工具函数：配置读取、日期格式化、Telegram 通知
+ * 工具函数：配置读取、日期格式化、Telegram 通知、密码哈希
  */
+
+/**
+ * SHA-256 哈希（Web Crypto API）
+ * 用于 Cookie 鉴权，避免明文密码存入 Cookie
+ */
+export async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * 定长比较，防时序攻击
+ */
+export function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
 
 export function getConfig(env) {
   return {

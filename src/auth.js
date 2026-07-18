@@ -1,8 +1,8 @@
 /**
- * 认证模块：Cookie 鉴权 + 登录页面
+ * 认证模块：Cookie 鉴权（SHA-256 哈希）+ 登录页面
  */
 
-import { getConfig } from './utils';
+import { getConfig, sha256, timingSafeEqual } from './utils';
 
 export async function authenticate(request, env) {
   const config = getConfig(env);
@@ -12,7 +12,9 @@ export async function authenticate(request, env) {
     const match = cookie.match(/auth=([^;]+)/);
     if (match) authToken = match[1];
   }
-  if (authToken === config.password) return null;
+  // Cookie 存的是哈希值，与密码的哈希比较
+  const expectedHash = await sha256(config.password);
+  if (authToken && timingSafeEqual(authToken, expectedHash)) return null;
   return Response.redirect(new URL('/login', request.url), 302);
 }
 
@@ -30,13 +32,15 @@ export async function handleLogin(request, env, redirectPath = '/admin') {
       const formData = await request.formData();
       const password = formData.get('password');
       if (password === config.password) {
+        // Cookie 存哈希，不存明文
+        const tokenHash = await sha256(password);
         const expires = new Date();
         expires.setDate(expires.getDate() + 7);
         const headers = new Headers();
         headers.set('Location', redirectPath);
         headers.set(
           'Set-Cookie',
-          `auth=${password}; Expires=${expires.toUTCString()}; HttpOnly; Path=/; Secure; SameSite=Lax`
+          `auth=${tokenHash}; Expires=${expires.toUTCString()}; HttpOnly; Path=/; Secure; SameSite=Lax`
         );
         return new Response(null, { status: 302, headers });
       }
