@@ -1,0 +1,153 @@
+/**
+ * 前端 HTML 模板
+ * 由 frontend/build.js 构建的 style.js 和 script.js 拼接而成
+ */
+
+import { HTML_CSS } from './style';
+import { HTML_JS } from './script';
+
+export function HTML_TEMPLATE(siteName, siteIcon, bgimgURL, githubURL, blogURL, blogName, isAdmin = false, initialDomains = null) {
+  const bgStyle = bgimgURL
+    ? `body{background-color:#e9eceb;background-image:url('${bgimgURL}');background-size:cover;background-attachment:fixed;background-position:center;}`
+    : '';
+
+  const footerLinks = [];
+  if (githubURL) footerLinks.push(`<a href="${githubURL}" target="_blank"><i class="fab fa-github"></i> GitHub</a>`);
+  if (blogURL) footerLinks.push(`<a href="${blogURL}" target="_blank"><i class="fas fa-blog"></i> ${blogName || 'Blog'}</a>`);
+  const footerHTML = footerLinks.length > 0
+    ? `<div class="footer"><p><span>Copyright © ${new Date().getFullYear()}</span>${footerLinks.map(l => '<span>|</span>' + l).join('')}</p></div>`
+    : '';
+
+  const headerHTML = isAdmin
+    ? `<div class="header">
+        <h1 id="siteTitle"><i class="fas fa-clock"></i> ${siteName}</h1>
+        <div class="action-buttons">
+          <button id="addDomainBtn" class="action-btn add-btn"><i class="fas fa-plus"></i> 添加</button>
+          <button id="selectAllBtn" class="action-btn select-btn"><i class="fas fa-check-square"></i> 全选</button>
+          <button id="batchDeleteBtn" class="action-btn del-btn"><i class="fas fa-trash"></i> 删除</button>
+          <button id="exportDataBtn" class="action-btn export-btn"><i class="fas fa-download"></i> 导出</button>
+          <button id="importDataBtn" class="action-btn import-btn"><i class="fas fa-upload"></i> 导入</button>
+          <input type="file" id="importFileInput" accept=".json" style="display:none">
+          <button id="logoutBtn" class="action-btn logout-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
+        </div>
+       </div>`
+    : `<div class="header">
+        <h1 id="siteTitle"><i class="fas fa-clock"></i> ${siteName}</h1>
+        <div class="action-buttons">
+          <button id="loginBtn" class="action-btn login-btn"><i class="fas fa-sign-in-alt"></i> 登录</button>
+        </div>
+       </div>`;
+
+  const formModal = isAdmin ? `
+    <div id="domainFormModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h2>添加/编辑域名</h2>
+        <form id="domainForm">
+          <input type="hidden" id="editOriginalDomain">
+          <label for="domain"><i class="fa fa-globe"></i> 域名</label>
+          <input type="text" id="domain" placeholder="例如: example.com" required>
+          <div id="domainFillWarning" class="form-warning"></div>
+          <label for="registrationDate"><i class="fa fa-calendar"></i> 注册时间</label>
+          <input type="date" id="registrationDate" required>
+          <label for="renewalPeriod"><i class="fas fa-history"></i> 续费周期（可选）</label>
+          <div class="renewal-group">
+            <input type="number" id="renewalPeriod" min="1" max="100" placeholder="例如: 1" value="">
+            <select id="renewalUnit"><option value="year">年</option><option value="month">月</option></select>
+          </div>
+          <label for="expirationDate"><i class="fa fa-calendar"></i> 到期时间</label>
+          <input type="date" id="expirationDate" required>
+          <label for="system"><i class="fa fa-registered"></i> 注册商名称</label>
+          <div class="autocomplete-field">
+            <input type="text" id="system" placeholder="例如: Cloudflare" autocomplete="off">
+            <i class="fas fa-chevron-down autocomplete-arrow"></i>
+            <div class="autocomplete-dropdown" id="systemDropdown"></div>
+          </div>
+          <label for="systemURL"><i class="fa fa-link"></i> 注册商地址</label>
+          <div class="autocomplete-field">
+            <input type="url" id="systemURL" placeholder="例如: https://dash.cloudflare.com" autocomplete="off">
+            <i class="fas fa-chevron-down autocomplete-arrow"></i>
+            <div class="autocomplete-dropdown" id="systemURLDropdown"></div>
+          </div>
+          <label for="registerAccount"><i class="fa fa-user"></i> 注册账号（可选）</label>
+          <div class="autocomplete-field">
+            <input type="text" id="registerAccount" placeholder="例如: admin@example.com" autocomplete="off">
+            <i class="fas fa-chevron-down autocomplete-arrow"></i>
+            <div class="autocomplete-dropdown" id="registerAccountDropdown"></div>
+          </div>
+          <label for="groups"><i class="fa fa-tags"></i> 分组（可选）</label>
+          <div class="groups-field">
+            <div class="groups-tag-list" id="groupsTagList"></div>
+            <div class="groups-input-wrap">
+              <input type="text" id="groupsInput" placeholder="输入分组名称或选择已有分组" autocomplete="off">
+              <i class="fas fa-chevron-down groups-arrow"></i>
+              <div class="autocomplete-dropdown" id="groupsDropdown"></div>
+            </div>
+            <input type="hidden" id="groups" value="">
+          </div>
+          <button type="submit"><i class="fa fa-save"></i> 保存</button>
+        </form>
+      </div>
+    </div>` : '';
+
+  const renewModal = isAdmin ? `
+    <div id="renewOverlay" class="toast-overlay" style="display:none">
+      <div class="toast-card">
+        <div class="toast-icon"><i class="fas fa-sync-alt" style="color:#186db3"></i></div>
+        <div class="renew-line"><span id="renewDomainName"></span><span> 续费时长</span></div>
+        <div class="renew-line">
+          <input type="number" id="renewDuration" min="1" value="1">
+          <select id="renewUnitSelect"><option value="year">年</option><option value="month">月</option></select>
+        </div>
+        <div class="toast-actions">
+          <button class="toast-btn toast-btn-cancel" id="renewCancelBtn">取消</button>
+          <button class="toast-btn toast-btn-primary" id="renewConfirmBtn">确定</button>
+        </div>
+      </div>
+    </div>` : '';
+
+  const initialData = initialDomains ? JSON.stringify(initialDomains) : 'null';
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${siteName}</title>
+  ${siteIcon ? `<link rel="icon" href="${siteIcon}" type="image/png">` : ''}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>${bgStyle}${HTML_CSS}</style>
+</head>
+<body>
+<script>
+  const IS_ADMIN = ${isAdmin};
+  const INITIAL_DOMAINS = ${initialData};
+</script>
+
+${headerHTML}
+${formModal}
+${renewModal}
+
+<div id="summary" class="summary-container"></div>
+
+<div class="controls-container">
+  <div id="groupTabs" class="tabs-container">
+    <button class="tab-btn active" data-group="全部">全部</button>
+    <button class="tab-btn" data-group="一级域名">一级域名</button>
+    <button class="tab-btn" data-group="二级域名">二级域名</button>
+    <button class="tab-btn" data-group="未分组">未分组</button>
+  </div>
+  <div class="search-container">
+    <i class="fas fa-search"></i>
+    <input type="text" id="searchBox" placeholder="搜索域名...">
+  </div>
+</div>
+
+<div id="domainList" class="domain-grid"></div>
+<div id="pagination" class="pagination"></div>
+${footerHTML}
+
+<script>${HTML_JS}</script>
+</body>
+</html>`;
+}
