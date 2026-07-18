@@ -102,28 +102,25 @@ async function handlePost(request, env) {
   const row = toRow(data);
 
   if (isEdit) {
-    // UPDATE
+    // UPDATE：domain 也包含在 SET 中（支持改名），WHERE 用 originalDomain
     const setClauses = [];
     const values = [];
     for (const [k, v] of Object.entries(row)) {
-      if (k === 'domain') continue;
       setClauses.push(k + ' = ?');
       values.push(v);
     }
     setClauses.push("updated_at = datetime('now')");
-    values.push(domainName);        // WHERE domain = ? (new)
-    values.push(originalDomain);    // WHERE domain = ? (old, in case renamed)
+    values.push(originalDomain);
 
     await env.DB.prepare(
       'UPDATE domains SET ' + setClauses.join(', ') + ' WHERE domain = ?'
     ).bind(...values).run();
-
-    // 如果域名改名了
-    if (originalDomain !== domainName) {
-      await env.DB.prepare('UPDATE domains SET domain = ? WHERE domain = ?').bind(domainName, originalDomain).run();
-    }
   } else {
-    // INSERT
+    // INSERT：先检查重复，避免 UNIQUE 约束抛出原始 SQLite 错误
+    const exists = await env.DB.prepare('SELECT domain FROM domains WHERE domain = ?').bind(domainName).first();
+    if (exists) {
+      return new Response(JSON.stringify({ error: '域名已存在' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+    }
     const columns = Object.keys(row).join(', ');
     const placeholders = Object.keys(row).map(() => '?').join(', ');
     const values = Object.values(row);
@@ -176,7 +173,7 @@ async function handlePatch(request, env) {
   let data;
   try {
     data = await request.json();
-    if (!data?.domain || !data?.duration || !data?.unit) throw new Error();
+    if (!data?.domain || data?.duration == null || !data?.unit) throw new Error();
   } catch {
     return new Response(JSON.stringify({ error: '缺少 domain/duration/unit' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }

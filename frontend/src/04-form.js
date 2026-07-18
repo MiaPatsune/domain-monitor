@@ -6,8 +6,8 @@ function openEditForm(domainData) {
 
   document.getElementById('editOriginalDomain').value = domainData.domain || '';
   document.getElementById('domain').value = domainData.domain || '';
-  document.getElementById('registrationDate').value = formatDate(domainData.registrationDate) || '';
-  document.getElementById('expirationDate').value = formatDate(domainData.expirationDate) || '';
+  document.getElementById('registrationDate').value = domainData.registrationDate ? formatDate(domainData.registrationDate) : '';
+  document.getElementById('expirationDate').value = domainData.expirationDate ? formatDate(domainData.expirationDate) : '';
   document.getElementById('system').value = domainData.system || '';
   document.getElementById('systemURL').value = domainData.systemURL || '';
   document.getElementById('registerAccount').value = domainData.registerAccount || '';

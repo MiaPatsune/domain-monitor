@@ -70,6 +70,12 @@ export default {
     }
 
     if (pathname === '/cron') {
+      // 简单鉴权：需带 ?token=<password> 或 Cron 服务内部触发
+      const token = url.searchParams.get('token');
+      const isCronInternal = request.headers.get('CF-Triggered-by') === 'cron';
+      if (!isCronInternal && token !== config.password) {
+        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
       try {
         const expiring = await checkDomainsScheduled(env);
         return new Response(JSON.stringify({ success: true, expiringCount: expiring.length, domains: expiring }), {

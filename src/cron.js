@@ -15,7 +15,6 @@ export async function checkDomainsScheduled(env) {
     return expiring;
   }
 
-  const now = Date.now();
   const today = Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
 
   for (const d of domains) {
@@ -34,7 +33,7 @@ export async function checkDomainsScheduled(env) {
         `账号: ${d.registerAccount || 'N/A'}`,
       ].join('\n');
 
-      await sendTelegramMessage(msg, config.tgid, config.tgtoken);
+      sendTelegramMessage(msg, config.tgid, config.tgtoken);
       expiring.push({ domain: d.domain, expirationDate: d.expirationDate, daysRemaining: daysLeft });
     }
   }
