@@ -1,0 +1,13 @@
+{
+  "name": "domain-monitor",
+  "version": "1.0.0",
+  "description": "基于 Cloudflare Workers + KV 的域名到期监控系统",
+  "main": "src/index.js",
+  "scripts": {
+    "build:frontend": "node frontend/build.js",
+    "deploy": "npx wrangler deploy",
+    "dev": "npx wrangler dev"
+  },
+  "keywords": ["domain", "whois", "cloudflare-workers", "monitor"],
+  "license": "MIT"
+}
