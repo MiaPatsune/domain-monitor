@@ -1,0 +1,12 @@
+name = "domain-monitor"
+main = "src/index.js"
+compatibility_date = "2025-11-17"
+keep_vars = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "domain-monitor-db"
+database_id = "{CF_D1_ID}"
+
+[triggers]
+crons = ["{CF_CRONS}"]
