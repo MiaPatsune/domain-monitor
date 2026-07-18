@@ -114,7 +114,7 @@ export function HTML_TEMPLATE(siteName, siteIcon, bgimgURL, githubURL, blogURL, 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${siteName}</title>
-  ${siteIcon ? `<link rel="icon" href="${siteIcon}" type="image/png">` : ''}
+  ${siteIcon ? `<link rel="icon" href="${siteIcon}">` : ''}
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>${bgStyle}${HTML_CSS}</style>
 </head>

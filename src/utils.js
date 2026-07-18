@@ -5,7 +5,7 @@
 export function getConfig(env) {
   return {
     siteName: env.SITENAME || '域名到期监控',
-    siteIcon: env.ICON || '',
+    siteIcon: env.ICON || '/favicon.svg',
     bgimgURL: env.BGIMG || 'https://www.miapatsune.dpdns.org/tuchuang/1781586439611_1.png',
     githubURL: env.GITHUB_URL || '',
     blogURL: env.BLOG_URL || '',

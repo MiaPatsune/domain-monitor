@@ -20,6 +20,7 @@ import { HTML_TEMPLATE } from '../frontend/index';
 import { onRequest as configApi } from './api/config';
 import { onRequest as domainsApi } from './domains';
 import { onRequest as whoisApi } from './whois';
+import { FAVICON_SVG } from './favicon';
 
 function maskDomain(domain) {
   const parts = domain.split('.');
@@ -44,6 +45,12 @@ export default {
     const config = getConfig(env);
 
     // ---- 公开端点 ----
+    if (pathname === '/favicon.svg') {
+      return new Response(FAVICON_SVG, {
+        headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' },
+      });
+    }
+
     if (pathname === '/login') return handleLogin(request, env, '/admin');
 
     if (pathname === '/logout') {
