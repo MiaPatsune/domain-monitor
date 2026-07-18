@@ -98,27 +98,37 @@ async function handleFormSubmit(e) {
   }
 }
 
-// 自动补全
+// 自动补全：全局存储选项，避免重复绑定事件
+let autocompleteData = {
+  system: [],
+  systemURL: [],
+  registerAccount: [],
+  groups: [],
+};
+
 function updateAutocompleteOptions() {
-  const systems = [...new Set(allDomains.map(d => d.system).filter(Boolean))];
-  const systemURLs = [...new Set(allDomains.map(d => d.systemURL).filter(Boolean))];
-  const accounts = [...new Set(allDomains.map(d => d.registerAccount).filter(Boolean))];
+  autocompleteData.system = [...new Set(allDomains.map(d => d.system).filter(Boolean))];
+  autocompleteData.systemURL = [...new Set(allDomains.map(d => d.systemURL).filter(Boolean))];
+  autocompleteData.registerAccount = [...new Set(allDomains.map(d => d.registerAccount).filter(Boolean))];
   const allGroups = new Set();
   allDomains.forEach(d => parseGroups(d.groups).forEach(g => allGroups.add(g)));
-
-  buildAutocomplete('system', 'systemDropdown', systems);
-  buildAutocomplete('systemURL', 'systemURLDropdown', systemURLs);
-  buildAutocomplete('registerAccount', 'registerAccountDropdown', accounts);
-  buildAutocomplete('groupsInput', 'groupsDropdown', [...allGroups], true);
+  autocompleteData.groups = [...allGroups];
 }
 
-function buildAutocomplete(inputId, dropdownId, options, isGroups = false) {
+function initAutocomplete() {
+  buildAutocomplete('system', 'systemDropdown', 'system', false);
+  buildAutocomplete('systemURL', 'systemURLDropdown', 'systemURL', false);
+  buildAutocomplete('registerAccount', 'registerAccountDropdown', 'registerAccount', false);
+  buildAutocomplete('groupsInput', 'groupsDropdown', 'groups', true);
+}
+
+function buildAutocomplete(inputId, dropdownId, dataKey, isGroups = false) {
   const input = document.getElementById(inputId);
   const dropdown = document.getElementById(dropdownId);
   if (!input || !dropdown) return;
 
-  input.addEventListener('focus', () => filterDropdown(input, dropdown, options, isGroups));
-  input.addEventListener('input', () => filterDropdown(input, dropdown, options, isGroups));
+  input.addEventListener('focus', () => filterDropdown(input, dropdown, autocompleteData[dataKey] || [], isGroups));
+  input.addEventListener('input', () => filterDropdown(input, dropdown, autocompleteData[dataKey] || [], isGroups));
   input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 200));
 
   dropdown.addEventListener('mousedown', (e) => {
@@ -140,7 +150,7 @@ function filterDropdown(input, dropdown, options, isGroups) {
   const val = input.value.toLowerCase();
   const filtered = options.filter(o => o.toLowerCase().includes(val));
   if (filtered.length === 0) { dropdown.style.display = 'none'; return; }
-  dropdown.innerHTML = filtered.map(o => '<div class="autocomplete-dropdown-item">' + o + '</div>').join('');
+  dropdown.innerHTML = filtered.map(o => '<div class="autocomplete-dropdown-item">' + escapeHtml(o) + '</div>').join('');
   dropdown.style.display = 'block';
 }
 

@@ -10,6 +10,12 @@ function getFilteredDomains() {
     filtered = filtered.filter(d => !isPrimaryDomain(d.domain));
   } else if (currentGroup === '未分组') {
     filtered = filtered.filter(d => !d.groups || d.groups.trim() === '');
+  } else if (currentGroup === '即将到期') {
+    // 特殊筛选：30天内到期
+    filtered = filtered.filter(d => {
+      const daysLeft = daysRemaining(d.expirationDate);
+      return daysLeft !== null && daysLeft >= 0 && daysLeft <= 30;
+    });
   } else if (currentGroup !== '全部') {
     filtered = filtered.filter(d => {
       const groups = parseGroups(d.groups);
@@ -37,7 +43,6 @@ function renderSummary() {
   const secondary = total - primary;
 
   let expiringCount = 0;
-  const now = Date.now();
   allDomains.forEach(d => {
     const daysLeft = daysRemaining(d.expirationDate);
     if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 30) expiringCount++;
@@ -86,35 +91,39 @@ function renderDomainCards(domains) {
     const daysText = daysLeft !== null ? (daysLeft < 0 ? '已过期 ' + Math.abs(daysLeft) + ' 天' : '剩余 ' + daysLeft + ' 天') : '';
 
     const groupTags = groups.length > 0
-      ? groups.map(g => '<span class="group-tag">' + g + '</span>').join('')
+      ? groups.map(g => '<span class="group-tag">' + escapeHtml(g) + '</span>').join('')
       : '<span class="group-tag tag-ungrouped">未分组</span>';
 
     const isChecked = selectedDomains.has(d.domain) ? 'checked' : '';
-
     const maskPrefix = IS_ADMIN ? '' : 'card-domain-masked';
+    const safeDomain = escapeAttr(d.domain);
+    const safeDomainText = escapeHtml(d.domain);
+    const safeSystem = escapeHtml(d.system || '-');
+    const safeSystemURL = escapeAttr(d.systemURL || '');
+    const safeAccount = escapeHtml(d.registerAccount || '-');
 
     const adminActions = IS_ADMIN ? `
       <div class="card-actions">
         <div class="card-action-icons">
-          <i class="fas fa-edit card-action-icon edit-icon" data-domain="${d.domain}" title="编辑"></i>
-          <i class="fas fa-sync-alt card-action-icon renew-icon" data-domain="${d.domain}" title="续费"></i>
-          <i class="fas fa-copy card-action-icon copy-icon" data-domain="${d.domain}" title="克隆"></i>
+          <i class="fas fa-edit card-action-icon edit-icon" data-domain="${safeDomain}" title="编辑"></i>
+          <i class="fas fa-sync-alt card-action-icon renew-icon" data-domain="${safeDomain}" title="续费"></i>
+          <i class="fas fa-copy card-action-icon copy-icon" data-domain="${safeDomain}" title="克隆"></i>
         </div>
-        <input type="checkbox" class="card-checkbox" data-domain="${d.domain}" ${isChecked}>
+        <input type="checkbox" class="card-checkbox" data-domain="${safeDomain}" ${isChecked}>
       </div>` : '';
 
     return `
-      <div class="domain-card" data-domain="${d.domain}">
+      <div class="domain-card" data-domain="${safeDomain}">
         <div class="card-header">
-          <span class="${maskPrefix}">${d.domain}</span>
+          <span class="${maskPrefix}">${safeDomainText}</span>
           <span class="card-status" style="--status-color:${STATUS_COLORS[status]}">${statusText}</span>
         </div>
         <div class="group-tags-container">${groupTags}</div>
         <div class="card-info">
           <p><strong>注册时间:</strong> ${formatDate(d.registrationDate)}</p>
           <p><strong>到期时间:</strong> ${formatDate(d.expirationDate)}</p>
-          <p><strong>注册商:</strong> ${d.systemURL ? '<a href="' + d.systemURL + '" target="_blank">' + (d.system || '-') + '</a>' : (d.system || '-')}</p>
-          <p><strong>账号:</strong> ${d.registerAccount || '-'}</p>
+          <p><strong>注册商:</strong> ${d.systemURL ? '<a href="' + safeSystemURL + '" target="_blank" rel="noopener noreferrer">' + safeSystem + '</a>' : safeSystem}</p>
+          <p><strong>账号:</strong> ${safeAccount}</p>
         </div>
         <div class="card-footer">
           <div class="progress-bar-container">
@@ -219,27 +228,41 @@ function updateActiveTab(group) {
 
 function ensureGroupTabs() {
   const tabsContainer = document.getElementById('groupTabs');
+  const fixedGroups = new Set(['全部', '一级域名', '二级域名', '未分组', '即将到期']);
+
+  // 移除不再存在的自定义分组标签
+  const currentGroups = new Set();
+  allDomains.forEach(d => parseGroups(d.groups).forEach(g => currentGroups.add(g)));
+
+  tabsContainer.querySelectorAll('.tab-btn').forEach(btn => {
+    const group = btn.dataset.group;
+    if (!fixedGroups.has(group) && !currentGroups.has(group)) {
+      btn.remove();
+      // 如果当前选中的分组被移除了，回到"全部"
+      if (currentGroup === group) {
+        currentGroup = '全部';
+      }
+    }
+  });
+
+  // 添加新的自定义分组标签
   const existingGroups = new Set();
   tabsContainer.querySelectorAll('.tab-btn').forEach(btn => existingGroups.add(btn.dataset.group));
 
-  allDomains.forEach(d => {
-    const groups = parseGroups(d.groups);
-    groups.forEach(g => {
-      if (!existingGroups.has(g)) {
-        existingGroups.add(g);
-        const btn = document.createElement('button');
-        btn.className = 'tab-btn';
-        btn.dataset.group = g;
-        btn.textContent = g;
-        btn.addEventListener('click', () => {
-          currentGroup = g;
-          currentPage = 1;
-          updateActiveTab(g);
-          renderAll();
-        });
-        tabsContainer.appendChild(btn);
-      }
-    });
+  currentGroups.forEach(g => {
+    if (!existingGroups.has(g)) {
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn';
+      btn.dataset.group = g;
+      btn.textContent = g;
+      btn.addEventListener('click', () => {
+        currentGroup = g;
+        currentPage = 1;
+        updateActiveTab(g);
+        renderAll();
+      });
+      tabsContainer.appendChild(btn);
+    }
   });
 }
 

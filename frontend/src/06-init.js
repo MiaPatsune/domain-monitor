@@ -96,6 +96,8 @@ function init() {
   // 初始化筛选器
   initFilters();
   initGroupsInput();
+  initAutocomplete();
+  initRenewal();
 
   // 加载数据
   fetchDomains();

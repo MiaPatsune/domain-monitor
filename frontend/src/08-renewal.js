@@ -40,8 +40,3 @@ function initRenewal() {
     }
   });
 }
-
-// 在 init 之后调用
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(initRenewal, 100);
-});
