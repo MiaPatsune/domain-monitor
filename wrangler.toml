@@ -3,8 +3,17 @@ main = "src/index.js"
 compatibility_date = "2025-11-17"
 keep_vars = true
 
+# D1 数据库绑定
+# ⚠️ database_id 是占位符，部署前必须用 CF_D1_ID 渲染：
+#      CI：自动执行（见 .github/workflows/deploy.yml）
+#      本地：CF_D1_ID=<你的数据库ID> node scripts/render-wrangler.js
+#    这样 Fork 之后不会误绑到本仓库作者的数据库。
 [[d1_databases]]
 binding = "DB"
 database_name = "domain-monitor-db"
-database_id = "56ef27f7-6783-4a52-9a7a-7ee9154e8351"
+database_id = "{CF_D1_ID}"
 
+# 定时触发（Cron 使用 UTC）：默认 01:00 / 13:00 UTC = 北京时间 09:00 / 21:00
+# 想改周期就设置仓库 Variable CF_CRONS（多个表达式用 ; 分隔），CI 会覆盖下面这一行。
+[triggers]
+crons = ["0 1,13 * * *"]
