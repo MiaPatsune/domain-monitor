@@ -28,7 +28,7 @@
 | `/api/domains` | 🔒 需鉴权 | 域名 CRUD API |
 | `/api/whois/<domain>` | 🔓 公开 | WHOIS 查询 |
 | `/api/config` | 🔓 公开 | 前端配置 |
-| `/cron` | 🔓 公开 | 手动触发到期检查 |
+| `/cron` | 🔒 需 token | 手动触发到期检查（`?token=xxx` 或 `Authorization: Bearer xxx`） |
 
 ## 快速部署
 
@@ -82,6 +82,7 @@
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
 | `DAYS` | 到期提醒天数 | `30` |
+| `CRON_TOKEN` | 手动触发 `/cron` 的专用令牌（**建议设置**，避免把管理密码写进 URL；不设置则用 `PASSWORD`） | - |
 | `SITENAME` | 网站标题 | `域名到期监控` |
 | `ICON` | 网站图标 URL | - |
 | `BGIMG` | 背景图片 URL | - |

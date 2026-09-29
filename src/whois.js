@@ -1,24 +1,35 @@
 /**
  * WHOIS 查询模块：ip.sb（主源）+ RDAP（备用）
+ *
+ * 备用源顺序：IANA bootstrap 解析出该 TLD 注册局的 RDAP 地址 → 失败/未收录则用 rdap.org。
+ * 注意：所有出站请求都必须带 User-Agent —— rdap.org 对没有 UA 的请求直接返回 403（实测），
+ * 之前正是因为漏了 UA，整个备用链路是死的。
  */
 
 import { isPrimaryDomain } from './utils';
 
+const USER_AGENT = 'domain-monitor/1.0 (+https://github.com/MiaPatsune/domain-monitor)';
+
+async function fetchWithTimeout(url, init = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: { 'User-Agent': USER_AGENT, ...(init.headers || {}) },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ---------- 主源：ip.sb WHOIS ----------
 
 async function fetchWhoisFromIpSb(domain) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch(`https://ip.sb/whois/${encodeURIComponent(domain)}`, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
-    if (!res.ok) throw new Error(`WHOIS 返回 ${res.status}`);
-    return await res.text();
-  } finally {
-    clearTimeout(timeout);
-  }
+  const res = await fetchWithTimeout(`https://ip.sb/whois/${encodeURIComponent(domain)}`, {}, 8000);
+  if (!res.ok) throw new Error(`WHOIS 返回 ${res.status}`);
+  return await res.text();
 }
 
 function parseWhoisHtml(html) {
@@ -35,19 +46,46 @@ function parseWhoisHtml(html) {
 
 // ---------- 备用源：RDAP ----------
 
-async function fetchRDAP(domain) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  try {
-    const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
-      signal: controller.signal,
-      headers: { Accept: 'application/rdap+json' },
-    });
-    if (!res.ok) throw new Error(`RDAP 返回 ${res.status}`);
-    return await res.json();
-  } finally {
-    clearTimeout(timeout);
+// IANA bootstrap（TLD → 注册局 RDAP 地址）。只在 isolate 内缓存，取不到就下次重试。
+// 注意：bootstrap 并未收录所有 TLD（例如 .io / .cn 就不在里面），这类后缀没有标准 RDAP
+// 入口可退，只能依赖主源 ip.sb。
+let rdapBootstrap = null;
+
+async function resolveRdapBase(domain) {
+  const tld = domain.split('.').pop().toLowerCase();
+  if (!rdapBootstrap) {
+    const res = await fetchWithTimeout('https://data.iana.org/rdap/dns.json', { headers: { Accept: 'application/json' } }, 8000);
+    if (!res.ok) throw new Error(`RDAP bootstrap 返回 ${res.status}`);
+    const json = await res.json();
+    rdapBootstrap = Array.isArray(json.services) ? json.services : [];
   }
+  const hit = rdapBootstrap.find(s => Array.isArray(s?.[0]) && s[0].some(t => String(t).toLowerCase() === tld));
+  return hit?.[1]?.[0] || null;
+}
+
+async function fetchRDAP(domain) {
+  const target = encodeURIComponent(domain);
+  const urls = [];
+
+  try {
+    const base = await resolveRdapBase(domain);
+    if (base) urls.push(`${base.replace(/\/+$/, '')}/domain/${target}`);
+    else console.warn(`IANA bootstrap 未收录 .${domain.split('.').pop()}，改用 rdap.org`);
+  } catch (err) {
+    console.warn(`RDAP bootstrap 失败: ${err.message}`);
+  }
+  urls.push(`https://rdap.org/domain/${target}`); // 兜底：rdap.org 本身也是按 bootstrap 转发的
+
+  for (const url of urls) {
+    try {
+      const res = await fetchWithTimeout(url, { headers: { Accept: 'application/rdap+json' } }, 10000);
+      if (!res.ok) throw new Error(`返回 ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn(`RDAP 源失败 (${url}): ${err.message}`);
+    }
+  }
+  return null;
 }
 
 function parseRDAP(json, domain) {
@@ -97,9 +135,11 @@ export async function queryWhois(domain) {
   // 备用
   try {
     const json = await fetchRDAP(domain);
-    const data = parseRDAP(json, domain);
-    if (data?.expiryDate) return data;
-    console.warn(`RDAP 数据不完整 (${domain})`);
+    if (json) {
+      const data = parseRDAP(json, domain);
+      if (data?.expiryDate) return data;
+      console.warn(`RDAP 数据不完整 (${domain})`);
+    }
   } catch (err) {
     console.warn(`RDAP 失败 (${domain}): ${err.message}`);
   }
