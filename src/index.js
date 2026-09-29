@@ -9,7 +9,7 @@
  *   /api/config    → 公开配置
  *   /api/domains   → 域名 CRUD（需鉴权）
  *   /api/whois/:d  → WHOIS 查询（公开）
- *   /cron          → 手动触发到期检查
+ *   /cron          → 手动触发到期检查（需 token，定时触发走 scheduled()）
  */
 
 import { getConfig, sha256, timingSafeEqual } from './utils';
@@ -70,18 +70,21 @@ export default {
     }
 
     if (pathname === '/cron') {
-      // 鉴权：需带 ?token=<password>（哈希比较）或 Cron 服务内部触发
-      const token = url.searchParams.get('token');
-      const isCronInternal = request.headers.get('CF-Triggered-by') === 'cron';
-      if (!isCronInternal) {
-        if (!token) {
-          return new Response(JSON.stringify({ error: '未授权：缺少 token 参数' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-        }
-        const tokenHash = await sha256(token);
-        const expectedHash = await sha256(config.password);
-        if (!timingSafeEqual(tokenHash, expectedHash)) {
-          return new Response(JSON.stringify({ error: '未授权：token 无效' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-        }
+      // 定时触发走 scheduled() 导出，不会进到这里；本入口只用于手动触发。
+      // 鉴权只认 token，绝不能靠请求头判断"是不是定时任务"——请求头客户端可以随便伪造。
+      // token 可用 ?token=xxx（兼容旧用法）或 Authorization: Bearer xxx 传递；
+      // 默认取管理密码，设置了 CRON_TOKEN 则只认 CRON_TOKEN。
+      const token = url.searchParams.get('token')
+        || (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+      const expected = env.CRON_TOKEN || config.password;
+
+      if (!token) {
+        return new Response(JSON.stringify({ error: '未授权：缺少 token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
+      const tokenHash = await sha256(token);
+      const expectedHash = await sha256(expected);
+      if (!timingSafeEqual(tokenHash, expectedHash)) {
+        return new Response(JSON.stringify({ error: '未授权：token 无效' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
       }
       try {
         const expiring = await checkDomainsScheduled(env);
