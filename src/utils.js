@@ -29,7 +29,9 @@ export function getConfig(env) {
   return {
     siteName: env.SITENAME || '域名到期监控',
     siteIcon: env.ICON || '/favicon.svg',
-    bgimgURL: env.BGIMG || 'https://miapatsune.dpdns.org/tuchuang/1781586439611_1.png',
+    // 默认背景图随 Worker 一起发布（见 wrangler.toml 的 [assets] / public/bg.webp），
+    // 不再依赖外部图床；想换成外链就在 Worker 里设置 BGIMG。
+    bgimgURL: env.BGIMG || '/bg.webp',
     githubURL: env.GITHUB_URL || '',
     blogURL: env.BLOG_URL || '',
     blogName: env.BLOG_NAME || '',

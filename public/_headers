@@ -1,0 +1,5 @@
+# 静态资源响应头（Workers Static Assets 的 _headers 约定）
+# 背景图是内容固定的文件：给它长缓存，避免每次进页面都回源校验。
+# 换图时请同时改文件名（例如 bg-2.webp），否则老访客最多 7 天看到旧图。
+/bg.webp
+  Cache-Control: public, max-age=604800, immutable
