@@ -143,6 +143,33 @@ npx wrangler deploy
 
 > `wrangler.toml` 里的 `database_id` 是 `{CF_D1_ID}` 占位符，必须先渲染再 `wrangler deploy`（CI 会自动完成这一步）。这是故意的：避免 Fork 之后把数据写到别人的数据库。
 > Cron 想临时改，用 `CF_CRONS="0 1 * * *;0 13 * * *" node scripts/render-wrangler.js`。
+> 本地部署可以直接用 `npm run deploy`（会先渲染再 deploy）。
+
+## 部署方式（两套入口只能留一套）
+
+仓库里存在两个部署入口，**同时启用会导致每次 push 部署两次**（版本互相覆盖、迁移与 Secret 设置时机不可控），请只保留一个：
+
+**A. GitHub Actions —— 默认走这条**
+`.github/workflows/deploy.yml`，push 到 `main` 自动触发：构建前端 → 渲染 `wrangler.toml` → 部署 Worker → 执行 D1 迁移 → 设置 Worker Secret。
+依赖上面表格里的 3 个 Secret。
+
+**B. Cloudflare Workers Builds —— CF 后台的 Git 集成**
+如果 Worker 在 Cloudflare 后台连了同一个仓库，它会直接执行 `npx wrangler deploy`，**不会**渲染 `wrangler.toml`，于是必然失败：
+
+```
+binding DB of type d1 must have a valid `database_id` specified [code: 10021]
+```
+
+两种处理方式，二选一：
+
+- **推荐：断开它**（避免双流水线）。Cloudflare 后台 → Workers & Pages → `domain-monitor` → Settings → Build → 断开 Git 集成。
+- **或者：把它配全**（Settings → Build）：
+  - Build variables 里加 `CF_D1_ID` = 你的 D1 数据库 ID（可选再加 `CF_CRONS`）
+  - Build command：`node scripts/render-wrangler.js`
+  - Deploy command：`npx wrangler d1 migrations apply domain-monitor-db --remote && npx wrangler deploy`
+  这样它也能独立跑完部署；此时应把 `.github/workflows/deploy.yml` 的 `on:` 改成只有 `workflow_dispatch`，避免两边同时部署。
+
+> 断掉 Git 集成不会影响已经部署的 Worker，只是不再由 Cloudflare 侧自动构建。
 
 ## 项目结构
 
