@@ -154,20 +154,23 @@ npx wrangler deploy
 依赖上面表格里的 3 个 Secret。
 
 **B. Cloudflare Workers Builds —— CF 后台的 Git 集成**
-如果 Worker 在 Cloudflare 后台连了同一个仓库，它会直接执行 `npx wrangler deploy`，**不会**渲染 `wrangler.toml`，于是必然失败：
+如果 Worker 在 Cloudflare 后台连了同一个仓库，它的 deploy command 默认是 `npx wrangler deploy`，**不会**渲染 `wrangler.toml`，于是必然失败：
 
 ```
 binding DB of type d1 must have a valid `database_id` specified [code: 10021]
 ```
 
-两种处理方式，二选一：
+注意：Workers Builds **不读取** wrangler.toml 里的 `[build]`（Custom Builds）配置，构建/部署命令只能在 **Settings → Build** 里改。三种处理方式，选一个：
 
-- **推荐：断开它**（避免双流水线）。Cloudflare 后台 → Workers & Pages → `domain-monitor` → Settings → Build → 断开 Git 集成。
-- **或者：把它配全**（Settings → Build）：
-  - Build variables 里加 `CF_D1_ID` = 你的 D1 数据库 ID（可选再加 `CF_CRONS`）
-  - Build command：`node scripts/render-wrangler.js`
-  - Deploy command：`npx wrangler d1 migrations apply domain-monitor-db --remote && npx wrangler deploy`
-  这样它也能独立跑完部署；此时应把 `.github/workflows/deploy.yml` 的 `on:` 改成只有 `workflow_dispatch`，避免两边同时部署。
+- **最省事：把 Build command 设成 `npm run build`**（即 `node scripts/render-wrangler.js`）。
+  脚本优先用 `CF_D1_ID`；没有该变量时会自动执行 `npx wrangler d1 list --json`，
+  按 `wrangler.toml` 里的 `database_name` 反查 database_id —— Workers Builds 的构建环境里
+  wrangler 本来就带着能部署的凭据，所以**不需要配置任何变量或 Secret**。
+- **或者：把 Deploy command 设成 `npm run deploy`**（同样先渲染再部署）。
+- **或者：直接断开它**（只想用 GitHub Actions 时最干净）。
+  Cloudflare 后台 → Workers & Pages → `domain-monitor` → Settings → Build → 断开 Git 集成。
+
+这样配好之后它也能独立完成部署；此时应把 `.github/workflows/deploy.yml` 的 `on:` 改成只有 `workflow_dispatch`，避免两边同时部署。
 
 > 断掉 Git 集成不会影响已经部署的 Worker，只是不再由 Cloudflare 侧自动构建。
 
