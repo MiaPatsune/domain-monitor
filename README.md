@@ -51,7 +51,7 @@
 | 名称 | 说明 | 必填 |
 |------|------|------|
 | `CF_API_TOKEN` | Cloudflare API Token（需要 Workers + D1 权限） | ✅ |
-| `CF_D1_ID` | 刚创建的 D1 数据库 ID | ✅ |
+| `CF_D1_ID` | 刚创建的 D1 数据库 ID（**必填**：不填部署会直接失败，以免误绑到别人的数据库） | ✅ |
 | `PASSWORD` | 管理页密码（默认 `123123`） | ✅ |
 | `TGID` | Telegram 通知 Chat ID | ❌ |
 | `TGTOKEN` | Telegram Bot Token | ❌ |
@@ -60,16 +60,17 @@
 | 名称 | 说明 | 必填 |
 |------|------|------|
 | `CF_ACCOUNT_ID` | Cloudflare 账户 ID（是 ID 不是邮箱） | ✅ |
-| `CF_CRONS` | Cron 表达式，如 `"0 1,13 * * *"`(北京时间 9:00/21:00) | ❌ |
+| `CF_CRONS` | Cron 表达式，默认 `0 1,13 * * *`(北京时间 9:00/21:00)；多个用 `;` 分隔 | ❌ |
 
 ### 4. 运行部署
 
 - 点击 `Actions` → `部署到 Cloudflare Workers` → `Run workflow`
 - Action 会自动：
   1. 构建前端代码
-  2. 部署 Worker
-  3. **执行 D1 数据库迁移**（自动建表）
-  4. 设置 Secret 环境变量
+  2. 渲染 `wrangler.toml`（把 `CF_D1_ID` / `CF_CRONS` 写进配置）
+  3. 部署 Worker
+  4. **执行 D1 数据库迁移**（自动建表）
+  5. 设置 Secret 环境变量
 
 ### 5. 绑定自定义域名(可选)
 
@@ -120,6 +121,9 @@ wrangler login
 # 创建本地 D1 数据库
 npx wrangler d1 create domain-monitor-db
 
+# 把数据库 ID 写进 wrangler.toml（{CF_D1_ID} 占位符）
+CF_D1_ID=<上一步输出的 database_id> node scripts/render-wrangler.js
+
 # 执行本地迁移
 npx wrangler d1 migrations apply domain-monitor-db --local
 
@@ -135,6 +139,9 @@ npx wrangler d1 migrations apply domain-monitor-db --remote
 # 部署
 npx wrangler deploy
 ```
+
+> `wrangler.toml` 里的 `database_id` 是 `{CF_D1_ID}` 占位符，必须先渲染再 `wrangler deploy`（CI 会自动完成这一步）。这是故意的：避免 Fork 之后把数据写到别人的数据库。
+> Cron 想临时改，用 `CF_CRONS="0 1 * * *;0 13 * * *" node scripts/render-wrangler.js`。
 
 ## 项目结构
 
@@ -165,6 +172,8 @@ npx wrangler deploy
 │       └── 08-renewal.js
 ├── migrations/
 │   └── 0001_initial.sql  # D1 建表迁移
+├── scripts/
+│   └── render-wrangler.js # 渲染 wrangler.toml 占位符（D1 ID / Cron）
 ├── wrangler.toml
 ├── package.json
 └── .github/workflows/deploy.yml
