@@ -86,7 +86,7 @@
 | `CRON_TOKEN` | 手动触发 `/cron` 的专用令牌（**建议设置**，避免把管理密码写进 URL；不设置则用 `PASSWORD`） | - |
 | `SITENAME` | 网站标题 | `域名到期监控` |
 | `ICON` | 网站图标 URL | - |
-| `BGIMG` | 背景图片 URL | - |
+| `BGIMG` | 背景图片 URL（不设置就用随仓库发布的 `/bg.webp`，不再依赖外部图床） | `/bg.webp` |
 | `GITHUB_URL` | GitHub 链接 | - |
 | `BLOG_URL` | 博客链接 | - |
 | `BLOG_NAME` | 博客名称 | - |
@@ -173,12 +173,19 @@ npx wrangler deploy
 │       └── 08-renewal.js
 ├── migrations/
 │   └── 0001_initial.sql  # D1 建表迁移
+├── public/               # Workers 静态资源（随 Worker 一起发布）
+│   ├── bg.webp           # 默认背景图（2520×1080，约 306 KB）
+│   └── _headers          # 静态资源响应头（给背景图长缓存）
 ├── scripts/
 │   └── render-wrangler.js # 渲染 wrangler.toml 占位符（D1 ID / Cron）
 ├── wrangler.toml
 ├── package.json
 └── .github/workflows/deploy.yml
 ```
+
+> 背景图由 Workers Static Assets 提供（`wrangler.toml` 里的 `[assets] directory = "public"`）：
+> 请求 `/bg.webp` 由资源层直接返回并带长缓存，其余路径照常走 Worker 代码。
+> 想换成外部图片链接，设置 `BGIMG` 环境变量即可；换图后请同时改文件名，否则老访客最多 7 天看到旧图。
 
 ## License
 
